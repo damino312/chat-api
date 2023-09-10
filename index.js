@@ -3,9 +3,18 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const app = express();
 
+// ---------Web Socket ----------
+
 const ws = require("ws");
+const jwt = require("jsonwebtoken");
+const jwtSecret = "my_jsw_secret";
+
+const User = require("./models/User.model");
+const Message = require("./models/Message.model");
+// ------------------------------
 
 const UserRoutes = require("./routes/User.route");
+const MessageRoutes = require("./routes/Message.route");
 
 app.use(
   cors({
@@ -15,6 +24,7 @@ app.use(
 );
 
 app.use(UserRoutes);
+app.use(MessageRoutes);
 
 mongoose
   .connect("mongodb://127.0.0.1:27017/chat")
@@ -24,6 +34,84 @@ mongoose
 const server = app.listen(4000);
 
 const wss = new ws.WebSocketServer({ server });
-wss.on("connection", (connection) => {
-  console.log("connected");
+wss.on("connection", async (connection, req) => {
+  function notifyAboutOnlineUsers() {
+    [...wss.clients].forEach((client) => {
+      client.send(
+        JSON.stringify({
+          online: [...wss.clients].map((c) => ({
+            userId: c.userId,
+            username: c.userName,
+          })),
+        })
+      );
+    });
+  }
+
+  connection.isAlive = true;
+
+  connection.timer = setInterval(() => {
+    connection.ping();
+    connection.deathTimer = setTimeout(() => {
+      connection.isAlive = false;
+      connection.terminate();
+      notifyAboutOnlineUsers();
+      console.log("death");
+    });
+  }, 5000);
+
+  connection.on("pong", () => {
+    console.log("pong");
+    clearTimeout(connection.deathTimer);
+  });
+
+  const cookies = req.headers.cookie;
+  // отображение
+  if (cookies) {
+    const tokenCookieString = cookies
+      .split(";")
+      .find((str) => str.startsWith("token=")); //start with
+    if (tokenCookieString) {
+      const token = tokenCookieString.split("=")[1];
+      if (token) {
+        await jwt.verify(token, jwtSecret, {}, async (err, userData) => {
+          if (err) throw err;
+          const { id } = userData;
+          const { login, avatar, name } = await User.findById(id);
+          connection.userId = id;
+          connection.userName = name;
+        });
+      }
+    }
+  }
+
+  connection.on("message", async (message) => {
+    const messageData = JSON.parse(message.toString());
+    const { recipient, text } = messageData;
+    if (recipient && text) {
+      //saving messages into db
+
+      const messageDoc = await Message.create({
+        sender: connection.userId,
+        recipient,
+        text,
+      });
+
+      [...wss.clients]
+        .filter((c) => c.userId === recipient)
+        .forEach((c) => {
+          console.log(c);
+          c.send(
+            JSON.stringify({
+              text,
+              sender: connection.userId,
+              recipient,
+              _id: messageDoc._id,
+            })
+          );
+        });
+    }
+  });
+
+  notifyAboutOnlineUsers();
 });
