@@ -1,6 +1,6 @@
 const User = require("../models/User.model");
 const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
+const jwt = require("jsonwebtoken"); //убрать
 
 const bcryptSalt = bcrypt.genSaltSync(10);
 const jwtSecret = "my_jsw_secret";
@@ -55,8 +55,8 @@ const GetUser = async (req, res) => {
         return;
       }
       try {
-        const { login, avatar, name } = await User.findById(userData.id);
-        res.json({ login, avatar, name });
+        const { login, avatar, name, id } = await User.findById(userData.id);
+        res.json({ login, avatar, name, id });
       } catch (er) {
         res.status(500).send(er);
         console.log(err);
@@ -67,4 +67,9 @@ const GetUser = async (req, res) => {
   }
 };
 
-module.exports = { RegisterUser, LoginUser, GetUser };
+const GetAllUsers = async (req, res) => {
+  const users = await User.find({}, { _id: 1, name: 1 });
+  res.json(users);
+};
+
+module.exports = { RegisterUser, LoginUser, GetUser, GetAllUsers };

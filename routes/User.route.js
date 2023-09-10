@@ -14,4 +14,6 @@ app.post("/login", UserController.LoginUser);
 
 app.get("/user", UserController.GetUser);
 
+app.get("/people", UserController.GetAllUsers);
+
 module.exports = app;
