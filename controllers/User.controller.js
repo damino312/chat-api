@@ -27,14 +27,19 @@ const LoginUser = async (req, res) => {
   if (user) {
     const pass = bcrypt.compareSync(password, user.password);
     if (pass) {
-      jwt.sign({ id: user._id }, jwtSecret, {}, (err, token) => {
-        if (err) {
-          console.error(err);
-          res.json("Error in creating a token").status(500);
-          return;
+      jwt.sign(
+        { id: user._id, name: user.name },
+        jwtSecret,
+        {},
+        (err, token) => {
+          if (err) {
+            console.error(err);
+            res.json("Ошибка при создании токена").status(500);
+            return;
+          }
+          res.cookie("token", token).json(user);
         }
-        res.cookie("token", token).json(user);
-      });
+      );
     } else {
       console.log("Неверный пароль");
       res.status(400).json("Неверный пароль");
@@ -72,4 +77,8 @@ const GetAllUsers = async (req, res) => {
   res.json(users);
 };
 
-module.exports = { RegisterUser, LoginUser, GetUser, GetAllUsers };
+const LogOut = (req, res) => {
+  res.cookie("token", "").json("Разлогинен");
+};
+
+module.exports = { RegisterUser, LoginUser, GetUser, GetAllUsers, LogOut };

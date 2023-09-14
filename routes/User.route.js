@@ -16,4 +16,6 @@ app.get("/user", UserController.GetUser);
 
 app.get("/people", UserController.GetAllUsers);
 
+app.get("/logout", UserController.LogOut);
+
 module.exports = app;

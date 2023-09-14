@@ -34,7 +34,7 @@ mongoose
 const server = app.listen(4000);
 
 const wss = new ws.WebSocketServer({ server });
-wss.on("connection", async (connection, req) => {
+wss.on("connection", (connection, req) => {
   function notifyAboutOnlineUsers() {
     [...wss.clients].forEach((client) => {
       client.send(
@@ -54,14 +54,14 @@ wss.on("connection", async (connection, req) => {
     connection.ping();
     connection.deathTimer = setTimeout(() => {
       connection.isAlive = false;
+      clearInterval(connection.timer);
       connection.terminate();
       notifyAboutOnlineUsers();
-      console.log("death");
-    });
+    }, 1000);
   }, 5000);
 
   connection.on("pong", () => {
-    console.log("pong");
+    console.log("pong ", [...wss.clients].length);
     clearTimeout(connection.deathTimer);
   });
 
@@ -74,10 +74,9 @@ wss.on("connection", async (connection, req) => {
     if (tokenCookieString) {
       const token = tokenCookieString.split("=")[1];
       if (token) {
-        await jwt.verify(token, jwtSecret, {}, async (err, userData) => {
+        jwt.verify(token, jwtSecret, {}, (err, userData) => {
           if (err) throw err;
-          const { id } = userData;
-          const { login, avatar, name } = await User.findById(id);
+          const { id, name } = userData;
           connection.userId = id;
           connection.userName = name;
         });
@@ -100,7 +99,6 @@ wss.on("connection", async (connection, req) => {
       [...wss.clients]
         .filter((c) => c.userId === recipient)
         .forEach((c) => {
-          console.log(c);
           c.send(
             JSON.stringify({
               text,
