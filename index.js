@@ -95,6 +95,7 @@ wss.on("connection", (connection, req) => {
         recipient,
         text,
       });
+      console.log(messageDoc.text);
 
       [...wss.clients]
         .filter((c) => c.userId === recipient)
@@ -104,7 +105,7 @@ wss.on("connection", (connection, req) => {
               text,
               sender: connection.userId,
               recipient,
-              _id: messageDoc._id,
+              _id: messageDoc._id.toString(),
             })
           );
         });
