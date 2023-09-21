@@ -1,6 +1,8 @@
 const User = require("../models/User.model");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken"); //убрать
+const mongoose = require("mongoose");
+const Message = require("../models/Message.model");
 
 const bcryptSalt = bcrypt.genSaltSync(10);
 const jwtSecret = "my_jsw_secret";
@@ -81,4 +83,45 @@ const LogOut = (req, res) => {
   res.cookie("token", "").json("Разлогинен");
 };
 
-module.exports = { RegisterUser, LoginUser, GetUser, GetAllUsers, LogOut };
+const GetLastMessages = async (req, res) => {
+  const { id: myId } = res.locals.userData;
+  const users = await User.find({
+    _id: { $ne: new mongoose.Types.ObjectId(myId) },
+  });
+  const lastMessagesOfUsers = {};
+
+  // Перебор юзеров и извлечение последнего сообщения с каждым из них
+  for (let user of users) {
+    const filter = {
+      $or: [
+        {
+          sender: new mongoose.Types.ObjectId(myId),
+          recipient: new mongoose.Types.ObjectId(user._id),
+        },
+        {
+          sender: new mongoose.Types.ObjectId(user._id),
+          recipient: new mongoose.Types.ObjectId(myId),
+        },
+      ],
+    };
+    const data = await Message.find(filter).sort({ _id: -1 }).limit(1);
+    if (data?.length > 0) {
+      const { recipient, sender, text } = data[0];
+      if (recipient.toString() === myId) {
+        lastMessagesOfUsers[sender] = { text, owner: false }; // owner говорит о том, твое ли это последнее сообщение или нет
+      } else {
+        lastMessagesOfUsers[recipient] = { text, owner: true };
+      }
+    }
+  }
+  res.json(lastMessagesOfUsers);
+};
+
+module.exports = {
+  RegisterUser,
+  LoginUser,
+  GetUser,
+  GetAllUsers,
+  LogOut,
+  GetLastMessages,
+};

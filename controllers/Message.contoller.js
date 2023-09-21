@@ -1,6 +1,6 @@
 const Message = require("../models/Message.model");
 const jwt = require("jsonwebtoken");
-const jwtSecret = "my_jsw_secret"; // убрать
+const { jwtSecret } = require("../config/config");
 
 async function getUserDataFromRequest(req) {
   return new Promise((resolve, reject) => {
