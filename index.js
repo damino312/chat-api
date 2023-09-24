@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const app = express();
+const fs = require("fs");
 
 // ---------Web Socket ----------
 
@@ -25,6 +26,7 @@ app.use(
 
 app.use(UserRoutes);
 app.use(MessageRoutes);
+app.use("/uploads", express.static(__dirname + "/uploads"));
 
 mongoose
   .connect("mongodb://127.0.0.1:27017/chat")
@@ -86,17 +88,33 @@ wss.on("connection", (connection, req) => {
 
   connection.on("message", async (message) => {
     const messageData = JSON.parse(message.toString());
-    const { recipient, text } = messageData;
-    if (recipient && text) {
+    const { recipient, text, file } = messageData;
+
+    let filename = null;
+
+    if (file) {
+      const parts = file.info.split(".");
+      const ext = parts[parts.length - 1];
+      filename = Date.now() + "." + ext;
+      const path = __dirname + "/uploads/" + filename;
+      const bufferData = new Buffer.from(file.data.split(",")[1], "base64");
+      fs.writeFile(path, bufferData, () => {
+        console.log("File saved", path);
+      });
+    }
+    if (recipient && (text || file)) {
       //saving messages into db
 
+      const fileData = file
+        ? { fileName: file.info, filePath: filename }
+        : null;
       const messageDoc = await Message.create({
         sender: connection.userId,
         recipient,
         text,
+        file: fileData,
       });
-      console.log(messageDoc.text);
-
+      console.log(messageDoc);
       [...wss.clients]
         .filter((c) => c.userId === recipient)
         .forEach((c) => {
@@ -106,6 +124,7 @@ wss.on("connection", (connection, req) => {
               sender: connection.userId,
               recipient,
               _id: messageDoc._id.toString(),
+              file: messageDoc.file,
             })
           );
         });

@@ -106,11 +106,11 @@ const GetLastMessages = async (req, res) => {
     };
     const data = await Message.find(filter).sort({ _id: -1 }).limit(1);
     if (data?.length > 0) {
-      const { recipient, sender, text } = data[0];
+      const { recipient, sender, text, file } = data[0];
       if (recipient.toString() === myId) {
-        lastMessagesOfUsers[sender] = { text, owner: false }; // owner говорит о том, твое ли это последнее сообщение или нет
+        lastMessagesOfUsers[sender] = { text, owner: false, file }; // owner говорит о том, твое ли это последнее сообщение или нет
       } else {
-        lastMessagesOfUsers[recipient] = { text, owner: true };
+        lastMessagesOfUsers[recipient] = { text, owner: true, file };
       }
     }
   }
